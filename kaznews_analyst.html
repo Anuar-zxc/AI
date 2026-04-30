@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KazNews Analyst — AI Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --bg2: #141418;
+    --bg3: #1c1c22;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0ee;
+    --text2: #9999a8;
+    --text3: #55555f;
+    --accent: #c8f060;
+    --accent-dim: rgba(200,240,96,0.12);
+    --red: #ff5e5e;
+    --red-dim: rgba(255,94,94,0.10);
+    --radius: 14px;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 400; }
+
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── NAV ── */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 40px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(13,13,15,0.85);
+    backdrop-filter: blur(16px);
+  }
+  .logo { font-family: 'Instrument Serif', serif; font-size: 22px; color: var(--text); letter-spacing: -0.3px; }
+  .logo span { color: var(--accent); }
+  .nav-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text2);
+    border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── MAIN ── */
+  main { flex: 1; max-width: 780px; margin: 0 auto; width: 100%; padding: 48px 24px 80px; }
+
+  /* ── HERO ── */
+  .hero { margin-bottom: 40px; }
+  .hero h1 { font-family: 'Instrument Serif', serif; font-size: 42px; line-height: 1.15; color: var(--text); margin-bottom: 12px; }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .hero p { font-size: 16px; color: var(--text2); line-height: 1.6; max-width: 520px; }
+
+  /* ── API KEY SETUP ── */
+  .setup-box {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; margin-bottom: 28px;
+  }
+  .setup-box label { font-size: 12px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 10px; }
+  .key-row { display: flex; gap: 8px; }
+  .key-row input {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 14px; font-size: 14px; color: var(--text); font-family: 'DM Sans', sans-serif;
+    outline: none; transition: border-color 0.2s;
+  }
+  .key-row input:focus { border-color: var(--border2); }
+  .key-row input::placeholder { color: var(--text3); }
+  .btn-save {
+    padding: 11px 18px; font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    background: var(--accent); color: #0d0d0f; border: none; border-radius: 10px;
+    cursor: pointer; white-space: nowrap; transition: opacity 0.15s;
+  }
+  .btn-save:hover { opacity: 0.85; }
+  .key-hint { font-size: 12px; color: var(--text3); margin-top: 8px; }
+  .key-hint a { color: var(--text2); }
+  .key-status { font-size: 12px; margin-top: 10px; padding: 6px 12px; border-radius: 8px; display: none; }
+  .key-status.ok { background: rgba(200,240,96,0.1); color: var(--accent); display: block; }
+  .key-status.err { background: var(--red-dim); color: var(--red); display: block; }
+
+  /* ── QUERY BOX ── */
+  .query-box { margin-bottom: 20px; }
+  .query-input-wrap {
+    display: flex; gap: 0;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; transition: border-color 0.2s;
+  }
+  .query-input-wrap:focus-within { border-color: var(--border2); }
+  #query {
+    flex: 1; background: transparent; border: none; outline: none;
+    padding: 16px 20px; font-size: 16px; color: var(--text); font-family: 'DM Sans', sans-serif;
+  }
+  #query::placeholder { color: var(--text3); }
+  #analyzeBtn {
+    padding: 14px 24px; background: var(--accent); color: #0d0d0f;
+    border: none; font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+  }
+  #analyzeBtn:hover { opacity: 0.85; }
+  #analyzeBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── CHIPS ── */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 32px; }
+  .chip {
+    font-size: 13px; padding: 6px 14px;
+    border: 1px solid var(--border); border-radius: 20px;
+    color: var(--text2); cursor: pointer; transition: all 0.15s;
+    background: transparent;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  /* ── THINKING ── */
+  .thinking-box {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 24px; display: none; align-items: flex-start; gap: 14px;
+  }
+  .thinking-box.visible { display: flex; }
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid var(--border2);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite; flex-shrink: 0; margin-top: 2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .thinking-text { font-size: 14px; color: var(--text2); line-height: 1.6; }
+  .thinking-step { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+  /* ── RESULT ── */
+  .result-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; display: none; animation: fadeIn 0.4s ease;
+  }
+  .result-card.visible { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .result-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+  .result-query { font-size: 13px; color: var(--text2); }
+  .result-query strong { color: var(--text); }
+  .result-time { font-size: 12px; color: var(--text3); }
+  .result-body { padding: 24px; font-size: 15px; line-height: 1.8; color: var(--text); }
+  .result-body p { margin-bottom: 14px; }
+  .result-body p:last-child { margin-bottom: 0; }
+  .result-body strong { color: var(--accent); font-weight: 500; }
+  .sources-bar {
+    border-top: 1px solid var(--border); padding: 16px 24px;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  .sources-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-right: 4px; }
+  .source-chip {
+    font-size: 12px; padding: 4px 12px;
+    border: 1px solid var(--border); border-radius: 20px;
+    color: var(--text2); cursor: pointer; transition: all 0.15s; text-decoration: none; display: inline-block;
+  }
+  .source-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── ERROR ── */
+  .error-box {
+    background: var(--red-dim); border: 1px solid rgba(255,94,94,0.25); border-radius: var(--radius);
+    padding: 16px 24px; font-size: 14px; color: var(--red); display: none;
+  }
+  .error-box.visible { display: block; }
+
+  /* ── HOW IT WORKS ── */
+  .how { margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border); }
+  .how h2 { font-family: 'Instrument Serif', serif; font-size: 24px; margin-bottom: 24px; color: var(--text); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .step { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .step-num { font-size: 11px; color: var(--accent); font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .step-title { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .step-desc { font-size: 13px; color: var(--text2); line-height: 1.55; }
+
+  /* ── HISTORY ── */
+  .history { margin-top: 32px; display: none; }
+  .history.visible { display: block; }
+  .history h3 { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .history-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 6px; cursor: pointer; font-size: 13px; color: var(--text2);
+    transition: all 0.15s; background: transparent;
+    width: 100%;
+    text-align: left;
+  }
+  .history-item:hover { border-color: var(--border2); color: var(--text); background: var(--bg2); }
+  .history-item-time { font-size: 11px; color: var(--text3); }
+
+  @media (max-width: 600px) {
+    nav { padding: 16px 20px; }
+    main { padding: 32px 16px 60px; }
+    .hero h1 { font-size: 30px; }
+    .steps { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Kaz<span>News</span> Analyst</div>
+  <div class="nav-badge"><div class="dot"></div> AI Agent · RAG</div>
+</nav>
+
+<main>
+  <div class="hero">
+    <h1>Анализ новостей<br>с помощью <em>AI-агента</em></h1>
+    <p>Задай вопрос — агент выполнит веб-поиск, найдёт актуальные источники и синтезирует аналитический ответ.</p>
+  </div>
+
+  <!-- API KEY -->
+  <div class="setup-box" id="setupBox">
+    <label>Anthropic API Key</label>
+    <div class="key-row">
+      <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off" />
+      <button class="btn-save" onclick="saveKey()">Сохранить</button>
+    </div>
+    <div class="key-hint">Получить ключ: <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> — бесплатный тариал доступен</div>
+    <div class="key-status" id="keyStatus"></div>
+  </div>
+
+  <!-- QUERY -->
+  <div class="query-box">
+    <div class="query-input-wrap">
+      <input type="text" id="query" placeholder="Что тебя интересует? Введи вопрос..." />
+      <button id="analyzeBtn" onclick="analyze()">Анализировать →</button>
+    </div>
+  </div>
+
+  <div class="chips">
+    <button class="chip" onclick="setQuery('Экономика Казахстана 2025')">🇰🇿 Экономика Казахстана</button>
+    <button class="chip" onclick="setQuery('Искусственный интеллект последние новости 2025')">🤖 ИИ новости</button>
+    <button class="chip" onclick="setQuery('Геополитика Центральная Азия')">🌍 Геополитика ЦА</button>
+    <button class="chip" onclick="setQuery('Технологические стартапы Казахстан')">🚀 Тех-стартапы</button>
+    <button class="chip" onclick="setQuery('Нефть цена рынок сегодня')">🛢️ Нефтяной рынок</button>
+  </div>
+
+  <!-- THINKING -->
+  <div class="thinking-box" id="thinkingBox">
+    <div class="spinner"></div>
+    <div>
+      <div class="thinking-text" id="thinkingText">Агент запущен...</div>
+      <div class="thinking-step" id="thinkingStep"></div>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- RESULT -->
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <div class="result-query" id="resultQuery"></div>
+      <div class="result-time" id="resultTime"></div>
+    </div>
+    <div class="result-body" id="resultBody"></div>
+    <div class="sources-bar" id="sourcesBar" style="display:none;"></div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="history" id="historySection">
+    <h3>История запросов</h3>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="how">
+    <h2>Как это работает</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">Шаг 01</div>
+        <div class="step-title">Retrieval</div>
+        <div class="step-desc">Агент вызывает инструмент web_search и получает актуальные данные из интернета в реальном времени.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">Шаг 02</div>
+        <div class="step-title">Augmentation</div>
+        <div class="step-desc">Найденные источники передаются как контекст в языковую модель Claude — это и есть RAG-паттерн.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">Шаг 03</div>
+        <div class="step-title">Generation</div>
+        <div class="step-desc">Claude синтезирует аналитический ответ, опираясь на свежие данные, и возвращает источники.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let apiKey = localStorage.getItem('anthropic_key') || '';
+let queryHistory = [];
+let isLoading = false;
+
+if (apiKey) {
+  document.getElementById('apiKey').value = apiKey;
+  showKeyStatus('ok', '✓ Ключ сохранён — можно начинать');
+}
+
+document.getElementById('query').addEventListener('keydown', e => {
+  if (e.key === 'Enter') analyze();
+});
+
+function saveKey() {
+  const val = document.getElementById('apiKey').value.trim();
+  if (!val.startsWith('sk-ant')) {
+    showKeyStatus('err', '✗ Неверный формат. Ключ должен начинаться с sk-ant-...');
+    return;
+  }
+  apiKey = val;
+  localStorage.setItem('anthropic_key', val);
+  showKeyStatus('ok', '✓ Ключ сохранён — можно начинать');
+}
+
+function showKeyStatus(type, msg) {
+  const el = document.getElementById('keyStatus');
+  el.className = 'key-status ' + type;
+  el.textContent = msg;
+}
+
+function setQuery(text) {
+  document.getElementById('query').value = text;
+  document.getElementById('query').focus();
+}
+
+function getTime() {
+  return new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+}
+
+function setThinking(text, step) {
+  document.getElementById('thinkingBox').classList.add('visible');
+  document.getElementById('thinkingText').textContent = text;
+  document.getElementById('thinkingStep').textContent = step || '';
+  document.getElementById('resultCard').classList.remove('visible');
+  document.getElementById('errorBox').classList.remove('visible');
+}
+
+function hideThinking() {
+  document.getElementById('thinkingBox').classList.remove('visible');
+}
+
+function showError(msg) {
+  hideThinking();
+  const el = document.getElementById('errorBox');
+  el.textContent = 'Ошибка: ' + msg;
+  el.classList.add('visible');
+}
+
+function renderResult(query, text, sources) {
+  hideThinking();
+  const paragraphs = text.split('\n').filter(l => l.trim()).map(l => {
+    const html = l.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return `<p>${html}</p>`;
+  }).join('');
+
+  document.getElementById('resultQuery').innerHTML = `Запрос: <strong>${query}</strong>`;
+  document.getElementById('resultTime').textContent = getTime();
+  document.getElementById('resultBody').innerHTML = paragraphs;
+
+  const bar = document.getElementById('sourcesBar');
+  if (sources.length) {
+    bar.style.display = 'flex';
+    bar.innerHTML = `<span class="sources-label">Источники</span>` +
+      sources.map(s => `<a class="source-chip" href="${s.url}" target="_blank">${s.title}</a>`).join('');
+  } else {
+    bar.style.display = 'none';
+  }
+
+  document.getElementById('resultCard').classList.add('visible');
+}
+
+async function analyze() {
+  const query = document.getElementById('query').value.trim();
+  if (!query || isLoading) return;
+  if (!apiKey) { showError('Введи API ключ выше'); return; }
+
+  isLoading = true;
+  document.getElementById('analyzeBtn').disabled = true;
+
+  setThinking('Агент запущен — выполняю веб-поиск...', 'Шаг 1/3: поиск актуальных источников');
+
+  const steps = [
+    [1800, 'Анализирую найденные материалы...', 'Шаг 2/3: обработка источников'],
+    [3400, 'Синтезирую аналитический ответ...', 'Шаг 3/3: генерация'],
+  ];
+  const timers = steps.map(([delay, text, step]) =>
+    setTimeout(() => setThinking(text, step), delay)
+  );
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `Ты — аналитический AI-агент. Используй web_search чтобы найти актуальную информацию по запросу пользователя.
+
+Дай развёрнутый аналитический ответ на русском языке (4-6 абзацев): объективно, с конкретными фактами и цифрами из найденных источников.
+
+В самом конце ответа добавь блок точно в таком формате:
+ИСТОЧНИКИ:
+[Название источника 1](https://url1.com)
+[Название источника 2](https://url2.com)`,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: query }]
+      })
+    });
+
+    timers.forEach(clearTimeout);
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+
+    const fullText = data.content.map(b => b.type === 'text' ? b.text : '').join('');
+
+    const sources = [];
+    const srcMatch = fullText.match(/ИСТОЧНИКИ:([\s\S]*)$/i);
+    if (srcMatch) {
+      const linkRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+      let m;
+      while ((m = linkRe.exec(srcMatch[1])) !== null) {
+        sources.push({ title: m[1], url: m[2] });
+      }
+    }
+
+    const cleanText = fullText.replace(/ИСТОЧНИКИ:[\s\S]*$/i, '').trim();
+    queryHistory.unshift({ query, time: getTime() });
+    renderResult(query, cleanText, sources);
+    updateHistory();
+
+  } catch (err) {
+    timers.forEach(clearTimeout);
+    showError(err.message || 'Не удалось выполнить запрос');
+  } finally {
+    isLoading = false;
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+function updateHistory() {
+  const sec = document.getElementById('historySection');
+  if (!queryHistory.length) return;
+  sec.classList.add('visible');
+  document.getElementById('historyList').innerHTML = queryHistory.slice(0, 5).map(h =>
+    `<button class="history-item" onclick="setQuery('${h.query.replace(/'/g,"\\'")}')">
+      <span>${h.query}</span>
+      <span class="history-item-time">${h.time}</span>
+    </button>`
+  ).join('');
+}
+</script>
+</body>
+</html>
